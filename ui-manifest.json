@@ -1,0 +1,86 @@
+{
+  "version": "0.1.0",
+  "status": "private-draft",
+  "intendedRepos": {
+    "frontend": "plan-d-web",
+    "backend": "plan-d-api",
+    "contracts": "plan-d-contracts"
+  },
+  "rules": {
+    "frontendBoundary": "UI code may call generated API client actions only. It must not import Supabase, know table names, bucket names, n8n URLs, or service secrets.",
+    "authTarget": "Backend auth endpoints set HttpOnly API cookies. The browser no longer owns a Supabase Auth session; /api/auth/session is retained only for Supabase email-link URL fragments.",
+    "stateChangingHeader": "All browser POST/PATCH/PUT/DELETE calls must send X-Plan-D-Client: web.",
+    "currentClientSeed": "contracts/src/client.ts is the temporary typed client seed until OpenAPI client generation is wired."
+  },
+  "screens": {
+    "login": {
+      "component": "src/components/Login.tsx",
+      "security": "public",
+      "currentDataAccess": ["GET /api/auth/me", "POST /api/auth/login", "POST /api/auth/signup", "POST /api/auth/reset-password", "POST /api/auth/magic-link"],
+      "futureActions": ["loginWithPassword", "signUpWithPassword", "requestPasswordReset", "requestMagicLink", "getCurrentUser"]
+    },
+    "dashboard": {
+      "component": "src/components/Dashboard.tsx",
+      "security": "authenticated",
+      "currentDataAccess": ["GET /api/dashboard/state"],
+      "futureActions": ["getDashboardState", "openCurrentSession", "openWritersRoom"]
+    },
+    "sessions": {
+      "component": "src/components/Sessions.tsx",
+      "security": "authenticated",
+      "currentDataAccess": ["GET /api/sessions", "GET /api/sessions/:sessionId"],
+      "futureActions": ["listSessions", "selectSession", "getSessionScriptReadiness"]
+    },
+    "checkIn": {
+      "component": "src/components/CheckIn.tsx",
+      "security": "participant",
+      "states": ["loading", "open", "alreadyCheckedIn", "closed", "error"],
+      "currentDataAccess": ["GET /api/check-in/state", "POST /api/check-in/upload-image", "POST /api/check-in/submit"],
+      "futureActions": ["getCheckInState", "uploadCheckInReferenceImage", "submitCheckIn"]
+    },
+    "writersRoom": {
+      "component": "src/components/WritersRoom.tsx",
+      "security": "participant-or-admin",
+      "states": ["loading", "waitingForScripts", "optionsReady", "finalReady", "error"],
+      "currentDataAccess": ["GET /api/writers-room/state", "API polling for generated_scripts readiness", "POST /api/automation/submit-feedback"],
+      "futureActions": ["getWritersRoom", "pollWritersRoom", "submitWritersRoomFeedback"]
+    },
+    "projectBrief": {
+      "component": "src/components/ProjectBrief.tsx",
+      "security": "participant",
+      "states": ["loading", "briefReady", "submissionsOpen", "submitted", "closed", "error"],
+      "currentDataAccess": ["GET /api/project-brief/state", "POST /api/project-brief/shots/upsert", "POST /api/project-brief/shots/delete", "POST /api/project-brief/submission", "API polling for shot-list refresh"],
+      "futureActions": ["getProjectBrief", "listShots", "upsertShot", "deleteShot", "listTeams", "submitFinalLink"]
+    },
+    "profile": {
+      "component": "src/components/Profile.tsx",
+      "security": "authenticated",
+      "currentDataAccess": ["GET /api/profile/me", "PUT /api/profile/me", "PATCH /api/auth/account", "GET /api/profiles", "backend-resolved profile image URLs", "GET/POST /api/social/follows", "POST /api/social/conversations"],
+      "futureActions": ["getProfile", "updateProfile", "uploadProfileImage", "toggleFollow", "startConversation"]
+    },
+    "network": {
+      "component": "src/components/Network.tsx",
+      "security": "authenticated",
+      "currentDataAccess": ["GET /api/profiles", "GET/POST /api/social/follows"],
+      "futureActions": ["searchProfiles", "listFollowers", "listFollowing", "toggleFollow"]
+    },
+    "messages": {
+      "component": "src/components/Messages.tsx",
+      "security": "authenticated",
+      "currentDataAccess": ["GET/POST /api/social/conversations", "POST /api/social/conversations/:conversationId/messages", "API polling for social/message refresh"],
+      "futureActions": ["listConversations", "getConversation", "sendMessage", "subscribeMessages"]
+    },
+    "showcase": {
+      "component": "src/components/Showcase.tsx",
+      "security": "authenticated",
+      "currentDataAccess": ["GET /api/showcase/submissions"],
+      "futureActions": ["listApprovedFilms", "getFilmDetails"]
+    },
+    "admin": {
+      "component": "src/components/Admin.tsx",
+      "security": "admin",
+      "currentDataAccess": ["GET /api/admin/overview", "PATCH /api/admin/settings", "POST /api/admin/sessions/save", "DELETE /api/admin/sessions/:sessionId", "GET /api/admin/team-builder", "POST /api/admin/team-builder", "GET /api/admin/submissions", "POST /api/admin/submissions/:submissionId/review", "POST /api/automation/trigger-current-session", "POST /api/admin/test-sessions/provision", "POST /api/admin/test-sessions/:sessionId/reset"],
+      "futureActions": ["getAdminDashboard", "saveAutomationSettings", "manageSessions", "manageTeams", "reviewSubmission", "triggerAutomation", "provisionTestSession", "resetTestSession"]
+    }
+  }
+}

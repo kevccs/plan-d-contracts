@@ -1,0 +1,1644 @@
+openapi: 3.1.0
+info:
+  title: Plan D Browser API
+  version: 0.1.0
+  description: >
+    Private contract for the current Plan D browser-callable API. This file is
+    intended to move into the private plan-d-contracts repo during the
+    frontend/backend split.
+servers:
+  - url: https://api.plandfilms.com
+    description: Future split-repo API site
+  - url: https://plandfilms.com
+    description: Current same-origin Netlify Functions deployment
+security:
+  - cookieAuth: []
+paths:
+  /api/auth/login:
+    post:
+      summary: Sign in with email and password
+      operationId: loginWithPassword
+      security: []
+      x-plan-d-security: public
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Signed in and API cookies were set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthCookieResponse"
+  /api/auth/signup:
+    post:
+      summary: Create an account with email and password
+      operationId: signUpWithPassword
+      security: []
+      x-plan-d-security: public
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                fullName:
+                  type: string
+                redirectTo:
+                  type: string
+      responses:
+        "200":
+          description: Account was created or confirmation email was sent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthCookieResponse"
+  /api/auth/session:
+    post:
+      summary: Bridge Supabase email-link URL fragment tokens into backend API cookies
+      operationId: syncApiSession
+      security: []
+      x-plan-d-security: token-bridge
+      x-plan-d-transition: Retain until Supabase email links are converted to a backend callback flow.
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accessToken, refreshToken]
+              properties:
+                accessToken:
+                  type: string
+                refreshToken:
+                  type: string
+                expiresIn:
+                  type: integer
+      responses:
+        "200":
+          description: API cookies were set.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, user]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  user:
+                    $ref: "#/components/schemas/AuthUser"
+  /api/auth/me:
+    get:
+      summary: Get the current API auth state
+      operationId: getCurrentUser
+      x-plan-d-security: optional-auth
+      responses:
+        "200":
+          description: Current auth state, with user and profile when signed in.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, authenticated, user, profile]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  authenticated:
+                    type: boolean
+                  user:
+                    oneOf:
+                      - $ref: "#/components/schemas/AuthUser"
+                      - type: "null"
+                  profile:
+                    type: [object, "null"]
+                    additionalProperties: true
+  /api/auth/account:
+    patch:
+      summary: Update current user's account email or password
+      operationId: updateAccountSettings
+      x-plan-d-security: authenticated
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        "200":
+          description: Account settings were updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, emailUpdated, passwordUpdated]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  user:
+                    $ref: "#/components/schemas/AuthUser"
+                  emailUpdated:
+                    type: boolean
+                  passwordUpdated:
+                    type: boolean
+  /api/profiles:
+    get:
+      summary: List public profiles for discovery
+      operationId: listPublicProfiles
+      security: []
+      x-plan-d-security: public
+      responses:
+        "200":
+          description: Public profile rows, excluding private/sensitive profile fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, profiles]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  profiles:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PublicProfile"
+  /api/profile/me:
+    get:
+      summary: Get or create the current user's profile
+      operationId: getMyProfile
+      x-plan-d-security: authenticated
+      responses:
+        "200":
+          description: Current user profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, profile]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  profile:
+                    $ref: "#/components/schemas/Profile"
+    put:
+      summary: Update the current user's profile
+      operationId: updateMyProfile
+      x-plan-d-security: authenticated
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [profile]
+              properties:
+                profile:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, profile]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  profile:
+                    $ref: "#/components/schemas/Profile"
+  /api/social/follows:
+    get:
+      summary: Get current user's follow state
+      operationId: getFollowState
+      x-plan-d-security: authenticated
+      responses:
+        "200":
+          description: Current user's followers and following ids.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowStateResponse"
+    post:
+      summary: Follow or unfollow another user
+      operationId: setFollowRelationship
+      x-plan-d-security: authenticated
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetUserId, shouldFollow]
+              properties:
+                targetUserId:
+                  type: string
+                shouldFollow:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated follow state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowStateResponse"
+  /api/social/conversations:
+    get:
+      summary: List current user's conversations
+      operationId: listConversations
+      x-plan-d-security: authenticated
+      responses:
+        "200":
+          description: Conversations visible to current user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, conversations]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  conversations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SocialConversation"
+    post:
+      summary: Get or create a direct conversation
+      operationId: getOrCreateDirectConversation
+      x-plan-d-security: authenticated
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetUserId]
+              properties:
+                targetUserId:
+                  type: string
+      responses:
+        "200":
+          description: Direct conversation id.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, conversationId]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  conversationId:
+                    type: string
+  /api/social/conversations/{conversationId}/messages:
+    post:
+      summary: Send a message to a conversation
+      operationId: sendConversationMessage
+      x-plan-d-security: conversation-participant
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  maxLength: 4000
+      responses:
+        "200":
+          description: Message was sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  message:
+                    $ref: "#/components/schemas/SocialMessage"
+  /api/check-in/state:
+    get:
+      summary: Get check-in state for the current user and session
+      operationId: getCheckInState
+      x-plan-d-security: authenticated
+      parameters:
+        - name: sessionId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session, derived session state, existing check-in, and preferred roles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckInStateResponse"
+  /api/check-in/upload-image:
+    post:
+      summary: Upload a check-in reference image
+      operationId: uploadCheckInImage
+      x-plan-d-security: authenticated
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, fileData, mimeType]
+              properties:
+                sessionId:
+                  type: string
+                fileName:
+                  type: string
+                mimeType:
+                  type: string
+                  enum: [image/jpeg, image/png, image/webp, image/gif]
+                fileData:
+                  type: string
+                  description: Base64 data URL or raw base64 image payload. Max 8 MB decoded.
+      responses:
+        "200":
+          description: Image was uploaded through the backend.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, publicUrl, path]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  publicUrl:
+                    type: string
+                  path:
+                    type: string
+  /api/check-in/submit:
+    post:
+      summary: Create or update the current user's session check-in
+      operationId: submitCheckIn
+      x-plan-d-security: authenticated
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, roles]
+              properties:
+                sessionId:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+                resources:
+                  type: array
+                  items:
+                    type: string
+                resourceDetails:
+                  type: object
+                  additionalProperties: true
+                genres:
+                  type: array
+                  items:
+                    type: string
+                referenceImageUrls:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Check-in was saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckInStateResponse"
+  /api/sessions:
+    get:
+      summary: List sessions and Writers' Room readiness
+      operationId: listSessions
+      security: []
+      x-plan-d-security: public-non-test-sessions
+      parameters:
+        - name: includeTest
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Honored only for admin-authenticated callers.
+      responses:
+        "200":
+          description: Session schedule and generated-script readiness.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, sessions, writersRoomAvailability]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  writersRoomAvailability:
+                    type: object
+                    additionalProperties:
+                      type: boolean
+  /api/sessions/{sessionId}:
+    get:
+      summary: Get one accessible session
+      operationId: getSession
+      security: []
+      x-plan-d-security: public-non-test-or-admin-test-session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session and Writers' Room readiness.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, session, writersRoomReady]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  session:
+                    type: [object, "null"]
+                    additionalProperties: true
+                  writersRoomReady:
+                    type: boolean
+  /api/dashboard/state:
+    get:
+      summary: Get current user's dashboard state
+      operationId: getDashboardState
+      x-plan-d-security: authenticated
+      parameters:
+        - name: preferredSessionId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dashboard stats and current session state.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - activeSession
+                  - activeSessionState
+                  - upcomingSessionCount
+                  - rolesTried
+                  - isParticipant
+                  - isGenerated
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  activeSession:
+                    type: [object, "null"]
+                    additionalProperties: true
+                  activeSessionState:
+                    type: [object, "null"]
+                    additionalProperties: true
+                  upcomingSessionCount:
+                    type: integer
+                  rolesTried:
+                    type: integer
+                  isParticipant:
+                    type: boolean
+                  isGenerated:
+                    type: boolean
+  /api/writers-room/state:
+    get:
+      summary: Get generated screenplay options/final draft state
+      operationId: getWritersRoomState
+      x-plan-d-security: checked-in-participant-or-admin
+      parameters:
+        - name: sessionId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Writers' Room screenplay row and fetch diagnostic.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, session, row, diagnostic]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  session:
+                    type: object
+                    additionalProperties: true
+                  row:
+                    type: [object, "null"]
+                    additionalProperties: true
+                  diagnostic:
+                    type: object
+                    additionalProperties: true
+  /api/project-brief/state:
+    get:
+      summary: Get project brief, team, shot list, and final-link submission state
+      operationId: getProjectBriefState
+      x-plan-d-security: checked-in-participant-or-admin
+      parameters:
+        - name: sessionId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: teamId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current project brief workspace state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectBriefStateResponse"
+  /api/project-brief/shots/upsert:
+    post:
+      summary: Create or update a live shot-list item
+      operationId: upsertProjectBriefShot
+      x-plan-d-security: checked-in-participant-or-admin
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, shot]
+              properties:
+                sessionId:
+                  type: string
+                teamId:
+                  type: [string, "null"]
+                shot:
+                  $ref: "#/components/schemas/ShotListItem"
+      responses:
+        "200":
+          description: Shot was saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, shot]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  shot:
+                    $ref: "#/components/schemas/ShotListItem"
+  /api/project-brief/shots/delete:
+    post:
+      summary: Delete a live shot-list item
+      operationId: deleteProjectBriefShot
+      x-plan-d-security: checked-in-participant-or-admin
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, shotId]
+              properties:
+                sessionId:
+                  type: string
+                teamId:
+                  type: [string, "null"]
+                shotId:
+                  type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /api/project-brief/submission:
+    post:
+      summary: Submit a final YouTube or Vimeo link for admin review
+      operationId: submitProjectFinalLink
+      x-plan-d-security: team-director
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, linkUrl]
+              properties:
+                sessionId:
+                  type: string
+                teamId:
+                  type: [string, "null"]
+                title:
+                  type: string
+                genre:
+                  type: string
+                logline:
+                  type: string
+                constraints:
+                  type: array
+                  items:
+                    type: string
+                linkUrl:
+                  type: string
+                  description: YouTube or Vimeo URL. Direct uploads are disabled.
+      responses:
+        "200":
+          description: Submission was saved pending admin review.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, submission]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  submission:
+                    $ref: "#/components/schemas/FilmSubmission"
+  /api/showcase/submissions:
+    get:
+      summary: List approved non-test showcase submissions
+      operationId: listApprovedShowcaseSubmissions
+      security: []
+      x-plan-d-security: public-approved-content
+      responses:
+        "200":
+          description: Approved films visible in the gallery/showcase.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, submissions]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  submissions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FilmSubmission"
+  /api/admin/overview:
+    get:
+      summary: Get admin settings, session list, and test lab summary
+      operationId: getAdminOverview
+      x-plan-d-security: admin
+      responses:
+        "200":
+          description: Admin dashboard overview.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, settings, sessions]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  settings:
+                    type: object
+                    additionalProperties: true
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  testLabSummary:
+                    type: [object, "null"]
+                    additionalProperties: true
+  /api/admin/settings:
+    patch:
+      summary: Save admin automation settings or prompt instructions
+      operationId: saveAdminSettings
+      x-plan-d-security: admin
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instructions:
+                  type: string
+                webhookUrl:
+                  type: string
+                autoTriggerEnabled:
+                  type: boolean
+      responses:
+        "200":
+          description: Settings were saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, settings]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  settings:
+                    type: object
+                    additionalProperties: true
+  /api/admin/sessions/save:
+    post:
+      summary: Create or update an admin-managed non-test session
+      operationId: saveAdminSession
+      x-plan-d-security: admin
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session]
+              properties:
+                session:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Session was saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, session]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  session:
+                    type: object
+                    additionalProperties: true
+  /api/admin/sessions/{sessionId}:
+    delete:
+      summary: Delete an admin-managed non-test session
+      operationId: deleteAdminSession
+      x-plan-d-security: admin
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      responses:
+        "200":
+          description: Session was deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, sessionId]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  sessionId:
+                    type: string
+  /api/admin/team-builder:
+    get:
+      summary: Load admin team-builder state for one session
+      operationId: getAdminTeamBuilder
+      x-plan-d-security: admin
+      parameters:
+        - name: sessionId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session teams and attending participants.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, teams, participants]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  teams:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  participants:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+    post:
+      summary: Mutate admin team-builder state
+      operationId: mutateAdminTeamBuilder
+      x-plan-d-security: admin
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, sessionId]
+              properties:
+                action:
+                  type: string
+                  enum: [createTeam, deleteTeam, renameTeam, assignParticipant, updateMemberRole, removeMember]
+                sessionId:
+                  type: string
+                teamId:
+                  type: string
+                name:
+                  type: string
+                userId:
+                  type: string
+                assignedRole:
+                  type: string
+                membershipId:
+                  type: string
+      responses:
+        "200":
+          description: Team-builder mutation succeeded and returned refreshed state.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, teams, participants]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  teams:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  participants:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  message:
+                    type: [string, "null"]
+  /api/admin/submissions:
+    get:
+      summary: List all showcase submissions for admin review
+      operationId: listAdminSubmissions
+      x-plan-d-security: admin
+      responses:
+        "200":
+          description: Admin review queue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, submissions]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  submissions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FilmSubmission"
+  /api/admin/submissions/{submissionId}/review:
+    post:
+      summary: Approve or reject one showcase submission
+      operationId: reviewAdminSubmission
+      x-plan-d-security: admin
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reviewStatus]
+              properties:
+                reviewStatus:
+                  type: string
+                  enum: [approved, rejected]
+                reviewNotes:
+                  type: string
+      responses:
+        "200":
+          description: Submission review status was saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, submission]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  submission:
+                    $ref: "#/components/schemas/FilmSubmission"
+  /api/auth/logout:
+    post:
+      summary: Clear backend API auth cookies
+      operationId: logout
+      security: []
+      x-plan-d-security: public
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      responses:
+        "200":
+          description: Cookies were cleared.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+  /api/auth/reset-password:
+    post:
+      summary: Send password reset email
+      operationId: requestPasswordReset
+      security: []
+      x-plan-d-security: public
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                redirectTo:
+                  type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /api/auth/magic-link:
+    post:
+      summary: Send magic-link email
+      operationId: requestMagicLink
+      security: []
+      x-plan-d-security: public
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                redirectTo:
+                  type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+  /api/health:
+    get:
+      summary: API health check
+      operationId: getHealth
+      security: []
+      x-plan-d-security: public
+      responses:
+        "200":
+          description: API is reachable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /api/automation/trigger-current-session:
+    post:
+      summary: Manually trigger screenplay option generation
+      operationId: triggerCurrentSessionAutomation
+      x-plan-d-security: admin
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                sessionId:
+                  type: string
+                  description: Optional session id override for admin/manual trigger.
+      responses:
+        "200":
+          description: n8n accepted the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationAcceptedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/automation/finalize-session:
+    post:
+      summary: Trigger final screenplay generation
+      operationId: finalizeSessionScreenplay
+      x-plan-d-security: participant-or-admin
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreenplayFeedbackPayload"
+      responses:
+        "200":
+          description: Finalize workflow accepted the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationAcceptedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/automation/submit-feedback:
+    post:
+      summary: Save Writers' Room screenplay feedback
+      operationId: submitWritersRoomFeedback
+      x-plan-d-security: participant-or-admin
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreenplayFeedbackPayload"
+      responses:
+        "200":
+          description: Feedback was saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, selectedFeedback]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  selectedFeedback:
+                    type: object
+                    additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/test-sessions/provision:
+    post:
+      summary: Provision an admin-owned synthetic test session
+      operationId: provisionAdminTestSession
+      x-plan-d-security: admin
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      responses:
+        "200":
+          description: Test session was provisioned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, session, participantCount]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  session:
+                    type: object
+                    additionalProperties: true
+                  participantCount:
+                    type: integer
+                  lastSeededAt:
+                    type: string
+                    format: date-time
+                  summary:
+                    type: object
+                    additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/admin/test-sessions/{sessionId}/reset:
+    post:
+      summary: Reset an admin-owned synthetic test session
+      operationId: resetAdminTestSession
+      x-plan-d-security: admin
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      responses:
+        "200":
+          description: Test session artifacts were reset.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, sessionId]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  sessionId:
+                    type: string
+                  summary:
+                    type: object
+                    additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: plan_d_refresh_token
+      description: Primary browser auth. Backend-managed HttpOnly refresh-token cookie; frontend code never reads it directly.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Supabase access token
+      description: Compatibility fallback for legacy/internal callers. Browser UI should use backend-managed HttpOnly cookies instead.
+  parameters:
+    PlanDClientHeader:
+      name: X-Plan-D-Client
+      in: header
+      required: true
+      schema:
+        type: string
+        const: web
+      description: Browser client marker required for state-changing API calls.
+  responses:
+    Unauthorized:
+      description: User is not authenticated.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: User is authenticated but lacks required permissions.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Success:
+      description: Request succeeded.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [success]
+            properties:
+              success:
+                type: boolean
+                const: true
+  schemas:
+    AuthUser:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        user_metadata:
+          type: object
+          additionalProperties: true
+        app_metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: [string, "null"]
+    AuthCookieResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+        user:
+          $ref: "#/components/schemas/AuthUser"
+        confirmationRequired:
+          type: boolean
+    PublicProfile:
+      type: object
+      required: [user_id]
+      additionalProperties: true
+      properties:
+        user_id:
+          type: string
+        display_name:
+          type: string
+        role:
+          type: string
+          enum: [participant, admin]
+        role_preferences:
+          type: array
+          items:
+            type: string
+        profile_photo_path:
+          type: [string, "null"]
+        profile_photo_url:
+          type: [string, "null"]
+        public_profile:
+          type: boolean
+    Profile:
+      allOf:
+        - $ref: "#/components/schemas/PublicProfile"
+        - type: object
+          additionalProperties: true
+          properties:
+            email:
+              type: string
+            display_name_changed_at:
+              type: [string, "null"]
+    FollowStateResponse:
+      type: object
+      required: [success, followingIds, followerIds]
+      properties:
+        success:
+          type: boolean
+          const: true
+        followingIds:
+          type: array
+          items:
+            type: string
+        followerIds:
+          type: array
+          items:
+            type: string
+    SocialMessage:
+      type: object
+      required: [id, senderId, text, timestamp]
+      properties:
+        id:
+          type: string
+        senderId:
+          type: string
+        text:
+          type: string
+        timestamp:
+          type: string
+    SocialConversation:
+      type: object
+      required: [id, type, participants, messages, lastUpdated]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        img:
+          type: string
+        type:
+          type: string
+          enum: [direct, group]
+        participants:
+          type: array
+          items:
+            type: string
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/SocialMessage"
+        lastUpdated:
+          type: string
+    CheckInStateResponse:
+      type: object
+      required: [success, session, sessionState, checkIn, preferredRoles]
+      properties:
+        success:
+          type: boolean
+          const: true
+        session:
+          type: [object, "null"]
+          additionalProperties: true
+        sessionState:
+          type: [object, "null"]
+          additionalProperties: true
+        checkIn:
+          type: [object, "null"]
+          additionalProperties: true
+        preferredRoles:
+          type: array
+          items:
+            type: string
+    ShotListItem:
+      type: object
+      required: [id, description, type, completed]
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        completed:
+          type: boolean
+        position:
+          type: integer
+    FilmSubmission:
+      type: object
+      required: [id, sessionId, sessionTitle, title, genre, logline, crew, submissionType, submittedAt]
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        teamId:
+          type: string
+        teamName:
+          type: string
+        sessionTitle:
+          type: string
+        title:
+          type: string
+        genre:
+          type: string
+        logline:
+          type: string
+        constraints:
+          type: array
+          items:
+            type: string
+        crew:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        submissionType:
+          type: string
+          enum: [file, link]
+        submittedAt:
+          type: string
+        linkUrl:
+          type: string
+        durationLabel:
+          type: string
+        attemptNumber:
+          type: integer
+        reviewStatus:
+          type: string
+          enum: [pending_review, approved, rejected]
+    ProjectBriefStateResponse:
+      type: object
+      required:
+        - success
+        - session
+        - sessionState
+        - brief
+        - teams
+        - teamMembers
+        - shots
+        - approvedSessionSubmissions
+        - canSubmitFinal
+        - attemptsRemaining
+      properties:
+        success:
+          type: boolean
+          const: true
+        session:
+          type: object
+          additionalProperties: true
+        sessionState:
+          type: object
+          additionalProperties: true
+        brief:
+          type: object
+          required: [title, genre, logline, beats, constraints]
+          properties:
+            title:
+              type: string
+            genre:
+              type: string
+            logline:
+              type: string
+            beats:
+              type: array
+              items:
+                type: string
+            constraints:
+              type: array
+              items:
+                type: string
+        teams:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        activeTeamId:
+          type: [string, "null"]
+        teamMembers:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        shots:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShotListItem"
+        currentSubmission:
+          anyOf:
+            - $ref: "#/components/schemas/FilmSubmission"
+            - type: "null"
+        approvedSessionSubmissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilmSubmission"
+        canSubmitFinal:
+          type: boolean
+        attemptsRemaining:
+          type: integer
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          const: false
+        message:
+          type: string
+        responseBody:
+          description: Optional safe diagnostic body.
+    AutomationAcceptedResponse:
+      type: object
+      required: [success, lifecycleStatus]
+      properties:
+        success:
+          type: boolean
+          const: true
+        mode:
+          type: string
+          enum: [manual, auto]
+        sessionId:
+          type: string
+        sessionTitle:
+          type: string
+        lifecycleStatus:
+          type: string
+          enum: [accepted]
+        statusCode:
+          type: integer
+        responseBody:
+          description: Safe n8n response preview.
+    ScreenplayFeedbackPayload:
+      type: object
+      required: [sessionId, selectedOptionKey]
+      additionalProperties: true
+      properties:
+        sessionId:
+          type: string
+        selectedOptionKey:
+          type: string
+        selectedOptionTitle:
+          type: [string, "null"]
+        selectedOptionLines:
+          type: array
+          items:
+            type: string
+        selectedHighlightIndexes:
+          type: array
+          items:
+            type: integer
+        selectedHighlights:
+          type: array
+          items:
+            type: string
+        favoriteParts:
+          type: array
+          items:
+            type: string
+        votes:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        rawFeedback:
+          type: object
+          additionalProperties: true

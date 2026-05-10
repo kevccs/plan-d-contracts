@@ -1,0 +1,16 @@
+{
+  "name": "@plan-d/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./src/client.ts",
+    "./domain": "./src/domain.ts",
+    "./options": "./src/options.ts"
+  },
+  "files": [
+    "openapi.yaml",
+    "ui-manifest.json",
+    "src"
+  ]
+}
