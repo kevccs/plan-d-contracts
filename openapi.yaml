@@ -599,7 +599,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [success, session, row, diagnostic]
+                required: [success, session, row, diagnostic, voting]
                 properties:
                   success:
                     type: boolean
@@ -612,6 +612,24 @@ paths:
                     additionalProperties: true
                   diagnostic:
                     type: object
+                    additionalProperties: true
+                  voting:
+                    type: object
+                    additionalProperties: true
+                  optionsReadyAt:
+                    type: [string, "null"]
+                    format: date-time
+                  voteDeadlineAt:
+                    type: [string, "null"]
+                    format: date-time
+                  checkedInCount:
+                    type: integer
+                  votedCount:
+                    type: integer
+                  allVotesSubmitted:
+                    type: boolean
+                  selectedFeedback:
+                    type: [object, "null"]
                     additionalProperties: true
   /api/project-brief/state:
     get:
@@ -1145,7 +1163,7 @@ paths:
     post:
       summary: Trigger final screenplay generation
       operationId: finalizeSessionScreenplay
-      x-plan-d-security: participant-or-admin
+      x-plan-d-security: admin
       parameters:
         - $ref: "#/components/parameters/PlanDClientHeader"
       requestBody:
@@ -1192,6 +1210,15 @@ paths:
                     const: true
                   selectedFeedback:
                     type: object
+                    additionalProperties: true
+                  voting:
+                    type: object
+                    additionalProperties: true
+                  finalizeOutcome:
+                    type: [object, "null"]
+                    additionalProperties: true
+                  finalizeError:
+                    type: [object, "null"]
                     additionalProperties: true
         "401":
           $ref: "#/components/responses/Unauthorized"
@@ -1506,6 +1533,7 @@ components:
         - brief
         - teams
         - teamMembers
+        - checkInDetails
         - shots
         - approvedSessionSubmissions
         - canSubmitFinal
@@ -1546,6 +1574,11 @@ components:
         activeTeamId:
           type: [string, "null"]
         teamMembers:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        checkInDetails:
           type: array
           items:
             type: object
