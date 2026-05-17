@@ -6,7 +6,11 @@
   "exports": {
     "./client": "./src/client.ts",
     "./domain": "./src/domain.ts",
-    "./options": "./src/options.ts"
+    "./options": {
+      "types": "./src/options.ts",
+      "import": "./src/options.js",
+      "default": "./src/options.js"
+    }
   },
   "files": [
     "openapi.yaml",
