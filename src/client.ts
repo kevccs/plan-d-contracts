@@ -220,7 +220,7 @@ export function createPlanDClient(transport: PlanDTransport) {
       setFollow: (body: { targetUserId: string; shouldFollow: boolean }) =>
         transport.requestJson<GenericSuccess>('/api/social/follows', { method: 'POST', body }),
       conversations: () =>
-        transport.requestJson<{ success: true; conversations: unknown[] }>('/api/social/conversations', {
+        transport.requestJson<{ success: true; conversations: unknown[]; unreadTotal: number }>('/api/social/conversations', {
           method: 'GET',
         }),
       createConversation: (body: { targetUserId: string }) =>
@@ -232,6 +232,11 @@ export function createPlanDClient(transport: PlanDTransport) {
         transport.requestJson<GenericSuccess>(
           `/api/social/conversations/${encodeURIComponent(conversationId)}/messages`,
           { method: 'POST', body }
+        ),
+      markConversationRead: (conversationId: string) =>
+        transport.requestJson<{ success: true; conversationId: string; lastReadAt: string }>(
+          `/api/social/conversations/${encodeURIComponent(conversationId)}/read`,
+          { method: 'POST' }
         ),
     },
     admin: {

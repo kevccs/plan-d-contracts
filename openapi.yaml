@@ -296,7 +296,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [success, conversations]
+                required: [success, conversations, unreadTotal]
                 properties:
                   success:
                     type: boolean
@@ -305,6 +305,8 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/SocialConversation"
+                  unreadTotal:
+                    type: integer
     post:
       summary: Get or create a direct conversation
       operationId: getOrCreateDirectConversation
@@ -372,6 +374,34 @@ paths:
                     const: true
                   message:
                     $ref: "#/components/schemas/SocialMessage"
+  /api/social/conversations/{conversationId}/read:
+    post:
+      summary: Mark a conversation as read
+      operationId: markConversationRead
+      x-plan-d-security: conversation-participant
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      responses:
+        "200":
+          description: Conversation read state was updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, conversationId, lastReadAt]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  conversationId:
+                    type: string
+                  lastReadAt:
+                    type: string
   /api/check-in/state:
     get:
       summary: Get check-in state for the current user and session
@@ -1425,7 +1455,7 @@ components:
           type: string
     SocialConversation:
       type: object
-      required: [id, type, participants, messages, lastUpdated]
+      required: [id, type, participants, messages, lastUpdated, unreadCount, hasUnread, lastReadAt]
       properties:
         id:
           type: string
@@ -1446,6 +1476,12 @@ components:
             $ref: "#/components/schemas/SocialMessage"
         lastUpdated:
           type: string
+        unreadCount:
+          type: integer
+        hasUnread:
+          type: boolean
+        lastReadAt:
+          type: [string, "null"]
     CheckInStateResponse:
       type: object
       required: [success, session, sessionState, checkIn, preferredRoles]
