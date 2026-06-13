@@ -1157,6 +1157,30 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Success"
+  /api/auth/resend-confirmation:
+    post:
+      summary: Resend signup confirmation email
+      operationId: resendSignupConfirmation
+      security: []
+      x-plan-d-security: public
+      parameters:
+        - $ref: "#/components/parameters/PlanDClientHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                redirectTo:
+                  type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
   /api/health:
     get:
       summary: API health check
@@ -1385,6 +1409,12 @@ components:
           type: string
         email:
           type: string
+        emailConfirmed:
+          type: boolean
+        email_confirmed_at:
+          type: [string, "null"]
+        confirmed_at:
+          type: [string, "null"]
         user_metadata:
           type: object
           additionalProperties: true

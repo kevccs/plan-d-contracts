@@ -16,6 +16,9 @@ export type PlanDTransport = {
 export type AuthUser = {
   id: string;
   email: string;
+  emailConfirmed?: boolean;
+  email_confirmed_at?: string | null;
+  confirmed_at?: string | null;
   user_metadata?: JsonObject;
   app_metadata?: JsonObject;
   created_at?: string | null;
@@ -146,6 +149,8 @@ export function createPlanDClient(transport: PlanDTransport) {
         transport.requestJson<GenericSuccess>('/api/auth/reset-password', { method: 'POST', body }),
       magicLink: (body: { email: string; redirectTo?: string }) =>
         transport.requestJson<GenericSuccess>('/api/auth/magic-link', { method: 'POST', body }),
+      resendConfirmation: (body: { email: string; redirectTo?: string }) =>
+        transport.requestJson<GenericSuccess>('/api/auth/resend-confirmation', { method: 'POST', body }),
     },
     profiles: {
       list: () => transport.requestJson<ProfilesResponse>('/api/profiles', { method: 'GET' }),
