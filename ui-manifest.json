@@ -67,7 +67,7 @@
     "messages": {
       "component": "src/components/Messages.tsx",
       "security": "authenticated",
-      "currentDataAccess": ["GET/POST /api/social/conversations", "POST /api/social/conversations/:conversationId/messages", "POST /api/social/conversations/:conversationId/read", "API polling for social/message refresh"],
+      "currentDataAccess": ["GET/POST /api/social/conversations", "POST /api/social/conversations/:conversationId/messages with text/image payloads", "POST /api/social/conversations/:conversationId/read", "API polling for social/message refresh"],
       "futureActions": ["listConversations", "getConversation", "sendMessage", "markConversationRead", "subscribeMessages"]
     },
     "showcase": {

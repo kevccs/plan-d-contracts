@@ -355,11 +355,21 @@ paths:
           application/json:
             schema:
               type: object
-              required: [text]
               properties:
                 text:
                   type: string
                   maxLength: 4000
+                image:
+                  type: [object, "null"]
+                  required: [fileData, mimeType]
+                  properties:
+                    fileName:
+                      type: string
+                    mimeType:
+                      type: string
+                      enum: [image/jpeg, image/png, image/webp, image/gif]
+                    fileData:
+                      type: string
       responses:
         "200":
           description: Message was sent.
@@ -1453,6 +1463,17 @@ components:
           type: string
         timestamp:
           type: string
+        image:
+          type: [object, "null"]
+          properties:
+            storagePath:
+              type: string
+            url:
+              type: [string, "null"]
+            mimeType:
+              type: [string, "null"]
+            fileName:
+              type: [string, "null"]
     SocialConversation:
       type: object
       required: [id, type, participants, messages, lastUpdated, unreadCount, hasUnread, lastReadAt]

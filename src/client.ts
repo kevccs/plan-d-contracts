@@ -228,8 +228,8 @@ export function createPlanDClient(transport: PlanDTransport) {
           method: 'POST',
           body,
         }),
-      sendMessage: (conversationId: string, body: { text: string }) =>
-        transport.requestJson<GenericSuccess>(
+      sendMessage: (conversationId: string, body: { text: string; image?: JsonObject | null }) =>
+        transport.requestJson<{ success: true; message: JsonObject }>(
           `/api/social/conversations/${encodeURIComponent(conversationId)}/messages`,
           { method: 'POST', body }
         ),
